@@ -1,0 +1,23 @@
+{
+  "AWS": {
+    "PROFILE": "dev-damfmp"
+  },
+
+  "PATHS": {
+    "S3_FRED_PATH": "s3://dynamic-allocation-macro-fmp/data/FRED-MD-2024-12.csv",
+    "S3_PRICES_PATH": "s3://dynamic-allocation-macro-fmp/data/monthly_ret.parquet",
+    "S3_OUTPUTS_PATH": "s3://dynamic-allocation-macro-fmp/outputs",
+    "S3_PATH": "s3://dynamic-allocation-macro-fmp"
+  },
+
+  "FILES_EXT": {
+    "MACRO": "csv",
+    "PRICES": "parquet"
+  },
+
+  "FMP": {
+    "DECAY": 60,
+    "MACRO_VAR_NAME": "CPIAUCSL"
+  }
+
+}

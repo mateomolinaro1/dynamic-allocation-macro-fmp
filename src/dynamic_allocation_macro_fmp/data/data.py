@@ -1,35 +1,56 @@
+from __future__ import annotations
 import pandas as pd
-from abc import ABC, abstractmethod
-import logging
+from typing import Dict
+from dynamic_allocation_macro_fmp.utils.s3_utils import s3Utils
+from dynamic_allocation_macro_fmp.utils.config import Config
 
-logger = logging.getLogger(__name__)
 
-class DataSource(ABC):
-    """Abstract class to define the interface for the data source"""
+class DataManager:
+    def __init__(self, config: Config):
+        self.config = config
 
-    @abstractmethod
-    def _fetch_data(self):
-        """Retrieve gross data from the data source"""
-        pass
+        self.fred_data: pd.DataFrame | None = None
+        self.returns_data: pd.DataFrame | None = None
+        self.code_transfo: Dict[str, str] | None = None
 
-class CSVDataSource(DataSource):
-    """Class to fetch data from a CSV file"""
-    def __init__(
-            self,
-            file_path:str|None=None,
-            index_col:int=0,
-            date_column=None
-    ):
-        self.file_path = file_path
-        self.index_col = index_col
-        self.date_column = date_column
-        self.data = None
-        self._fetch_data()
+        self.load()
 
-    def _fetch_data(self):
-        """Retrieve gross data from csv file"""
-        data = pd.read_csv(self.file_path, index_col=self.index_col)
-        if self.date_column:
-            data.index = pd.to_datetime(data.index)
-        if self.data is None:
-            self.data = data
+    # ---------- Public API ---------- #
+    def load(self) -> None:
+        raw = self._fetch_from_s3()
+        self._process(raw)
+
+    # ---------- Internal helpers ---------- #
+    def _fetch_from_s3(self) -> dict[str, pd.DataFrame]:
+        return {
+            "fred": s3Utils.pull_file_from_s3(
+                path=self.config.fred_path,
+                file_type=self.config.macro_ext,
+                index_col=0,
+            ),
+            "prices": s3Utils.pull_file_from_s3(
+                path=self.config.prices_path,
+                file_type=self.config.prices_ext,
+            ),
+        }
+
+    def _process(self, raw: dict[str, pd.DataFrame]) -> None:
+        self.code_transfo = self._extract_fred_transform_codes(raw["fred"])
+        self.fred_data = self._clean_fred(raw["fred"])
+        self.returns_data = raw["prices"]
+
+    # ---------- FRED-specific logic ---------- #
+    @staticmethod
+    def _extract_fred_transform_codes(fred: pd.DataFrame) -> dict[str, float]:
+        res = dict(
+            zip(fred.columns, fred.loc["Transform:", :])
+        )
+        res = dict(sorted(res.items()))
+        return res
+
+    @staticmethod
+    def _clean_fred(fred: pd.DataFrame) -> pd.DataFrame:
+        fred = fred.iloc[1:].copy()
+        fred.index = pd.to_datetime(fred.index, format="%m/%d/%Y")
+        fred = fred.sort_index(axis=1)
+        return fred

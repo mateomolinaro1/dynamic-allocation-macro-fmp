@@ -8,11 +8,14 @@ import polars as pl
 import boto3
 import pandas as pd
 from botocore.client import BaseClient
+from typing import Any
+from dynamic_allocation_macro_fmp.utils.config import Config
+config=Config()
 
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_PROFILE = os.getenv("AWS_PROFILE", "team-dev-aia")
+DEFAULT_PROFILE = config.aws_profile
 DEFAULT_REGION = os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION")
 
 
@@ -180,10 +183,11 @@ class s3Utils:
             profile: Optional[str] = DEFAULT_PROFILE,
             region: Optional[str] = DEFAULT_REGION,
             to_polars: bool = False,
-            file_type: Optional[str] = None,  # "parquet" | "pickle"
-    ):
+            file_type: Optional[str] = None,  # "parquet" | "pickle" | "csv"
+            **csv_kwargs: Any,
+    )->pd.DataFrame|pl.DataFrame:
         """
-        Download a parquet or pickle file from S3.
+        Download a parquet, pickle or csv file from S3.
 
         Parameters
         ----------
@@ -195,8 +199,10 @@ class s3Utils:
             AWS region
         to_polars : bool, default False
             If True and parquet → return polars.DataFrame
-        file_type : {"parquet", "pickle"}, optional
+        file_type : {"parquet", "pickle", "csv"}, optional
             Force file type. If None, inferred from extension.
+        csv_kwargs : dict
+            Extra keyword arguments passed to pd.read_csv / pl.read_csv
 
         Returns
         -------
@@ -214,6 +220,8 @@ class s3Utils:
                 file_type = "parquet"
             elif path.endswith((".pkl", ".pickle")):
                 file_type = "pickle"
+            elif path.endswith(".csv"):
+                file_type = "csv"
             else:
                 raise ValueError("Cannot infer file type from path; specify file_type")
 
@@ -230,6 +238,11 @@ class s3Utils:
 
         if file_type == "pickle" or file_type == "pkl":
             return pickle.loads(buf.getvalue())
+
+        if file_type == "csv":
+            if to_polars:
+                return pl.read_csv(buf, **csv_kwargs)
+            return pd.read_csv(buf, **csv_kwargs)
 
         raise ValueError(f"Unsupported file_type: {file_type}")
 
