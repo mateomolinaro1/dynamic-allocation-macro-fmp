@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import logging
 import json
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,12 @@ class Config:
         self.decay: int|float|None = None
         self.macro_var_name: str|None = None
 
+        # Feature engineering
+        self.start_date: str|None = None
+        self.end_date: str|None = None
+        self.lags: List[int]|list|None = None
+        self.forecast_horizon: int|None = None
+
         # Load json config to attributes of Config class
         self._load_run_pipeline_config()
 
@@ -73,3 +80,9 @@ class Config:
             # FMP
             self.decay = config.get("FMP").get("DECAY")
             self.macro_var_name = config.get("FMP").get("MACRO_VAR_NAME")
+
+            # Feature engineering
+            self.start_date = config.get("FEATURE_ENGINEERING").get("START_DATE")
+            self.end_date = config.get("FEATURE_ENGINEERING").get("END_DATE")
+            self.lags = config.get("FEATURE_ENGINEERING").get("LAGS")
+            self.forecast_horizon = config.get("FEATURE_ENGINEERING").get("FORECAST_HORIZON")

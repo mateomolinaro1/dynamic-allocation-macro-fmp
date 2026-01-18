@@ -18,6 +18,13 @@
   "FMP": {
     "DECAY": 60,
     "MACRO_VAR_NAME": "CPIAUCSL"
+  },
+
+  "FEATURE_ENGINEERING": {
+    "START_DATE": "1959-01-01",
+    "END_DATE": "2024-11-01",
+    "LAGS": [1,2,3,4,5,6],
+    "FORECAST_HORIZON": 1
   }
 
 }

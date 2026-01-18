@@ -11,7 +11,7 @@ class DataManager:
 
         self.fred_data: pd.DataFrame | None = None
         self.returns_data: pd.DataFrame | None = None
-        self.code_transfo: Dict[str, str] | None = None
+        self.code_transfo: Dict[str, int|float] | None = None
 
         self.load()
 
