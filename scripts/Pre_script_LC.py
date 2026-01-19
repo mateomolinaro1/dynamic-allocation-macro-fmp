@@ -237,3 +237,5 @@ plt.ylabel('Valeur')
 plt.legend()
 plt.grid()
 plt.show()
+
+#ajout
