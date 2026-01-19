@@ -3,6 +3,8 @@ import pandas as pd
 import statsmodels.api as sm
 from typing import Tuple
 from statsmodels.regression.linear_model import RegressionResults
+from abc import ABC, abstractmethod
+from sklearn.linear_model import Lasso as SklearnLasso
 
 class Models:
 
@@ -60,3 +62,85 @@ class Models:
             "hac_bse":hac_bse,
             "hac_pvalues":hac_pvalues
         }
+
+class Model(ABC):
+    """
+    Abstract base class for forecasting models.
+    """
+    @abstractmethod
+    def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
+        """
+        Fit the model to the data.
+
+        Parameters
+        ----------
+        x : pd.DataFrame
+            Input features for training.
+        y : pd.DataFrame
+            Target variable for training.
+        """
+        pass
+
+    @abstractmethod
+    def predict(self, x: pd.DataFrame) -> pd.DataFrame:
+        """
+        Predict using the fitted model.
+
+        Parameters
+        ----------
+        x : pd.DataFrame
+            Input features for prediction.
+
+        Returns
+        -------
+        pd.DataFrame
+            Predictions from the model.
+        """
+        pass
+
+class Lasso(Model):
+    """
+    Lasso regression model.
+    """
+    def __init__(self, alpha: float = 1.0):
+        """
+        Parameters
+        ----------
+        alpha : float
+            Regularization strength.
+        """
+        self.alpha = alpha
+        self.model = None
+
+    def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
+        """
+        Fit the Lasso model to the data.
+
+        Parameters
+        ----------
+        x : pd.DataFrame
+            Input features for training.
+        y : pd.DataFrame
+            Target variable for training.
+        """
+        self.model = SklearnLasso(alpha=self.alpha)
+        self.model.fit(x, y)
+
+    def predict(self, x: pd.DataFrame) -> pd.DataFrame:
+        """
+        Predict using the fitted Lasso model.
+
+        Parameters
+        ----------
+        x : pd.DataFrame
+            Input features for prediction.
+
+        Returns
+        -------
+        pd.DataFrame
+            Predictions from the model.
+        """
+        if self.model is None:
+            raise ValueError("Model is not fitted yet.")
+        predictions = self.model.predict(x)
+        return pd.DataFrame(predictions, index=x.index, columns=["y_hat"])
