@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from dynamic_allocation_macro_fmp.data.data import DataManager
 from dynamic_allocation_macro_fmp.utils.config import Config, logger
-from dynamic_allocation_macro_fmp.forecasting.models import Models
+from dynamic_allocation_macro_fmp.forecasting.models import WLSExponentialDecay
 from dynamic_allocation_macro_fmp.forecasting.features_engineering import FeaturesEngineering
 
 class FactorMimickingPortfolio:
@@ -29,6 +29,8 @@ class FactorMimickingPortfolio:
         self.default_pvalue = self._empty_like()
         self.newey_west_pvalue = self._empty_like()
         self.adjusted_rsquared = self._empty_like()
+
+        self.bayesian_betas = self._empty_like()
 
     def fit_wls(self)->None:
         # Get X and ys (ys are y for each asset)
@@ -56,19 +58,21 @@ class FactorMimickingPortfolio:
                 logger.info(f"Not enough data for asset {col}")
                 continue
 
-            res = Models.wls_exponential_decay(X=x,y=y,decay=self.config.decay)
+            # res = Models.wls_exponential_decay(X=x,y=y,decay=self.config.decay)
+            wls = WLSExponentialDecay(decay=self.config.decay)
+            wls.fit(x=x, y=y)
             # Store
             date = y.index[-1]
-            self.betas_macro.loc[date,col] = res["results"].params.loc[self.config.macro_var_name]
-            self.betas_mkt.loc[date, col] = res["results"].params.loc["market_premium"]
+            self.betas_macro.loc[date,col] = wls.results.params.loc[self.config.macro_var_name]
+            self.betas_mkt.loc[date, col] = wls.results.params.loc["market_premium"]
 
-            self.white_var_betas.loc[date, col] = (res["results"].HC0_se**2).loc[self.config.macro_var_name]
-            self.newey_west_var_betas.loc[date, col] = (res["hac_bse"]**2).loc[self.config.macro_var_name]
+            self.white_var_betas.loc[date, col] = (wls.results.HC0_se**2).loc[self.config.macro_var_name]
+            self.newey_west_var_betas.loc[date, col] = (wls.hac_bse**2).loc[self.config.macro_var_name]
 
-            self.default_pvalue.loc[date, col] = res["results"].pvalues.loc[self.config.macro_var_name]
-            self.newey_west_pvalue.loc[date, col] = res["hac_pvalues"].loc[self.config.macro_var_name]
+            self.default_pvalue.loc[date, col] = wls.results.pvalues.loc[self.config.macro_var_name]
+            self.newey_west_pvalue.loc[date, col] = wls.hac_pvalues.loc[self.config.macro_var_name]
 
-            self.adjusted_rsquared.loc[date, col] = res["results"].rsquared_adj
+            self.adjusted_rsquared.loc[date, col] = wls.results.rsquared_adj
 
         return
 
@@ -111,6 +115,34 @@ class FactorMimickingPortfolio:
             index=self.asset_returns.index,
             columns=self.asset_returns.columns,
         )
+
+    def _get_bayesian_betas(self):
+
+        if self.betas_macro.isna().all().all():
+            raise ValueError("fit_wls first.")
+
+        # Cross-sectional prior
+        prior_betas = self.betas_macro.mean(axis=1)
+
+        # Time-series variance (Newey–West), aggregated across assets
+        ts_var = self.newey_west_var_betas
+        ts_var_agg = ts_var.mean(axis=1)
+
+        # Cross-sectional variance
+        cs_var = self.betas_macro.var(axis=1, ddof=0)
+
+        # Shrinkage intensity
+        denom = ts_var_agg + cs_var
+        s = ts_var_agg / denom.replace(0, np.nan)
+
+        # Bayesian shrinkage
+        bayesian_betas = (
+                prior_betas.values[:, None] * s.values[:, None]
+                + self.betas_macro * (1 - s.values)[:, None]
+        )
+
+        return bayesian_betas
+
 
 
 
