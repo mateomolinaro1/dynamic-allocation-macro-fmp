@@ -43,3 +43,4 @@ bayesian_betas = (
                 prior_betas.values[:, None] * s.values[:, None]
                 + fmp.betas_macro * (1 - s.values)[:, None]
         )
+
