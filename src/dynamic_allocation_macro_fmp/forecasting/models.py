@@ -5,6 +5,10 @@ from typing import Tuple
 from statsmodels.regression.linear_model import RegressionResults
 from abc import ABC, abstractmethod
 from sklearn.linear_model import Lasso as SklearnLasso
+from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.svm import SVR
+from sklearn.neural_network import MLPRegressor
 
 # class Models:
 #
@@ -193,3 +197,136 @@ class Lasso(Model):
             raise ValueError("Model is not fitted yet.")
         predictions = self.model.predict(x)
         return pd.DataFrame(predictions, index=x.index, columns=["y_hat"])
+
+"""Série de modèles usuels provenant de de scikit-learn
+sur le modèle abstrait Model"""
+
+class LinearModel(Model):
+
+    def __init__(self, **kwargs):
+        self.model = LinearRegression(**kwargs)
+
+    def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
+        self.model.fit(x, y.values.ravel())
+
+    def predict(self, x: pd.DataFrame) -> pd.DataFrame:
+        y_pred = self.model.predict(x)
+        return pd.DataFrame(y_pred, index=x.index, columns=["prediction"])
+
+class RidgeModel(Model):
+
+    def __init__(self, alpha: float = 1.0, **kwargs):
+        self.model = Ridge(alpha=alpha, **kwargs)
+
+    def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
+        self.model.fit(x, y.values.ravel())
+
+    def predict(self, x: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame(
+            self.model.predict(x),
+            index=x.index,
+            columns=["prediction"]
+        )
+
+class ElasticNetModel(Model):
+
+    def __init__(self, alpha: float = 0.1, l1_ratio: float = 0.5, **kwargs):
+        self.model = ElasticNet(
+            alpha=alpha,
+            l1_ratio=l1_ratio,
+            max_iter=10_000,
+            **kwargs
+        )
+
+    def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
+        self.model.fit(x, y.values.ravel())
+
+    def predict(self, x: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame(
+            self.model.predict(x),
+            index=x.index,
+            columns=["prediction"]
+        )
+
+class RandomForestModel(Model):
+
+    def __init__(self, n_estimators: int = 500, random_state: int = 42, **kwargs):
+        self.model = RandomForestRegressor(
+            n_estimators=n_estimators,
+            random_state=random_state,
+            **kwargs
+        )
+
+    def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
+        self.model.fit(x, y.values.ravel())
+
+    def predict(self, x: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame(
+            self.model.predict(x),
+            index=x.index,
+            columns=["prediction"]
+        )
+
+class GradientBoostingModel(Model):
+
+    def __init__(self, n_estimators: int = 300, learning_rate: float = 0.05, **kwargs):
+        self.model = GradientBoostingRegressor(
+            n_estimators=n_estimators,
+            learning_rate=learning_rate,
+            **kwargs
+        )
+
+    def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
+        self.model.fit(x, y.values.ravel())
+
+    def predict(self, x: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame(
+            self.model.predict(x),
+            index=x.index,
+            columns=["prediction"]
+        )
+
+class SVRModel(Model):
+
+    def __init__(self, kernel: str = "rbf", C: float = 1.0, epsilon: float = 0.1, **kwargs):
+        self.model = SVR(kernel=kernel, C=C, epsilon=epsilon, **kwargs)
+
+    def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
+        self.model.fit(x, y.values.ravel())
+
+    def predict(self, x: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame(
+            self.model.predict(x),
+            index=x.index,
+            columns=["prediction"]
+        )
+
+class NeuralNetModel(Model):
+
+    def __init__(
+        self,
+        hidden_layer_sizes=(50, 50),
+        activation="relu",
+        solver="adam",
+        max_iter=5_000,
+        random_state=42,
+        **kwargs
+    ):
+        self.model = MLPRegressor(
+            hidden_layer_sizes=hidden_layer_sizes,
+            activation=activation,
+            solver=solver,
+            max_iter=max_iter,
+            random_state=random_state,
+            **kwargs
+        )
+
+    def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
+        self.model.fit(x, y.values.ravel())
+
+    def predict(self, x: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame(
+            self.model.predict(x),
+            index=x.index,
+            columns=["prediction"]
+        )
