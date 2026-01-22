@@ -172,9 +172,7 @@ class LassoSelector(FeatureSelector):
         return order
 
     def return_features(self, df: pd.DataFrame, target: str) -> list:
-        """
-        Appelle _fit() en interne et renvoie les variables sélectionnées
-        """
+        
         self._fit(df, target)
 
         self.features_ = list(
