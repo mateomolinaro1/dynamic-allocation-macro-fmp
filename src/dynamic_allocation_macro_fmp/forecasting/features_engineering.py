@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from dynamic_allocation_macro_fmp.data.data import DataManager
 from dynamic_allocation_macro_fmp.utils.config import Config, logger
-
+from sklearn.preprocessing import StandardScaler 
 
 class FeaturesEngineering:
     def __init__(
@@ -96,6 +96,18 @@ class FeaturesEngineering:
         # passing the features to the model because we'll use expanding/rolling windows.
         self._split_y_x()
 
+
+class StandardScaler():
+    def __init__(self):
+        self.scaler = StandardScaler()
+
+    def fit_transform(self, x: pd.DataFrame):
+        x_scaled = self.scaler.fit_transform(x)
+        return pd.DataFrame(x_scaled, index=x.index, columns=x.columns)
+
+    def transform(self, x: pd.DataFrame) -> pd.DataFrame:
+        x_scaled = self.scaler.transform(x)
+        return pd.DataFrame(x_scaled, index=x.index, columns=x.columns)
 
 
 
