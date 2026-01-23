@@ -3,11 +3,13 @@ import pandas as pd
 
 from abc import ABC, abstractmethod
 import statsmodels.api as sm
+from statsmodels.tsa.statespace.dynamic_factor import DynamicFactor
 
 from sklearn.linear_model import Lars
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.linear_model import LassoCV
 from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 
 class FeatureSelector(ABC):
@@ -179,3 +181,127 @@ class LassoSelector(FeatureSelector):
             self.coefs_[self.coefs_.abs() > 1e-6].index
         )
         return self.features_
+    
+class FactorExtractor(ABC) :
+    """
+    Abstract base class for factor extraction methods.
+    """
+
+    @abstractmethod
+    def fit(self, X: pd.DataFrame) -> None:
+        pass
+
+    @abstractmethod
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        pass
+
+    @abstractmethod
+    def fit_transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        self.fit(X)
+        return self.transform(X)
+    
+
+class DynamicFactorExtractor(FactorExtractor):
+    """
+    Dynamic Factor Model extractor using statsmodels.
+    """
+
+    def __init__(
+        self,
+        n_factors: int = 2,
+        factor_order: int = 1,
+        error_order: int = 0,
+        standardize: bool = True
+    ):
+        self.n_factors = n_factors
+        self.factor_order = factor_order
+        self.error_order = error_order
+        self.standardize = standardize
+
+        self.model = None
+        self.results = None
+        self.mean_ = None
+        self.std_ = None
+
+    def fit(self, X: pd.DataFrame) -> None:
+        data = X.copy()
+
+        if self.standardize:
+            self.scaler = StandardScaler()
+            data = self.scaler.fit_transform(data)
+
+        self.model = DynamicFactor(
+            data,
+            k_factors=self.n_factors,
+            factor_order=self.factor_order,
+            error_order=self.error_order
+        )
+
+        self.results = self.model.fit(disp=False)
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        if self.results_ is None:
+            raise ValueError("Model must be fitted before transforming data.")
+        
+        factors = self.results_.factors.filtered
+        factors_df = pd.DataFrame(
+            factors,
+            index=X.index,
+            columns=[f"Factor_{i+1}" for i in range(self.n_factors)]
+        )
+        return factors_df
+
+    def fit_transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        self.fit(X)
+        return self.transform(X)
+    
+
+class PCAFactorExtractor(FactorExtractor):
+    """
+    PCA-based factor extractor for macro data.
+    """
+
+    def __init__(
+        self,
+        n_factors: int = 2,
+        standardize: bool = True
+    ):
+        self.n_factors = n_factors
+        self.standardize = standardize
+
+        self.scaler = None
+        self.pca = None
+        self.columns_ = None
+
+    def fit(self, X: pd.DataFrame) -> None:
+        self.columns_ = X.columns
+
+        data = X.values
+
+        if self.standardize:
+            self.scaler = StandardScaler()
+            data = self.scaler.fit_transform(data)
+
+        self.pca = PCA(n_components=self.n_factors)
+        self.pca.fit(data)
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        if self.pca is None:
+            raise RuntimeError("PCAFactorExtractor must be fitted first.")
+
+        data = X.values
+
+        if self.standardize:
+            data = self.scaler.transform(data)
+
+        factors = self.pca.transform(data)
+
+        return pd.DataFrame(
+            factors,
+            index=X.index,
+            columns=[f"factor_{i+1}" for i in range(self.n_factors)]
+        )
+    
+    def fit_transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        self.fit(X)
+        return self.transform(X)
