@@ -26,7 +26,7 @@ class EstimationScheme(ABC):
         self.config = config
         self.x = x
         self.y = y
-        if x.index != y.index:
+        if not x.index.equals(y.index):
             raise ValueError("X and Y must have the same index")
         self.data: pd.DataFrame = pd.concat([x, y], axis=1)
 
@@ -42,11 +42,8 @@ class EstimationScheme(ABC):
             index=self.date_range,
             columns=[self.config.macro_var_name],
         )
-        self.best_score_all_models_overtime : pd.DataFrame = pd.DataFrame(
-            index=self.date_range,
-            columns=[],
-        )
-        self.hyperparams_all_models_overtime : Dict[str, pd.DataFrame] = {}
+        self.best_score_all_models_overtime : pd.DataFrame | None = None
+        self.best_hyperparams_all_models_overtime : Dict[str, pd.DataFrame] = {}
         self.best_params_all_models_overtime : Dict[str, pd.DataFrame] = {}
 
     # -----------------------------
@@ -64,7 +61,7 @@ class EstimationScheme(ABC):
     # SPLITTING LOGIC
     # -----------------------------
     @abstractmethod
-    def get_train_validation_split(self, t: int):
+    def _get_train_validation_split(self, t: int):
         """
         Return (train_data, val_data, val_end_date)
         """
@@ -74,7 +71,7 @@ class EstimationScheme(ABC):
     # -----------------------------
     def _split_xy(self, df: pd.DataFrame):
         x = df.drop(columns=self.config.macro_var_name)
-        y = df[self.config.macro_var_name]
+        y = df[[self.config.macro_var_name]]
         return x, y
 
     @staticmethod

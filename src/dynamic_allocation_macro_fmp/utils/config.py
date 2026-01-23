@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import logging
 import json
-from typing import List
+from typing import List, Dict, Type
+from dynamic_allocation_macro_fmp.forecasting.models import Model, Lasso, WLSExponentialDecay, OLS
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,13 @@ class Config:
         self.start_date: str|None = None
         self.end_date: str|None = None
         self.lags: List[int]|list|None = None
+
+        # Forecasting
         self.forecast_horizon: int|None = None
+        self.validation_window: int|None = None
+        self.min_nb_periods_required: int|None = None
+        self.models: Dict[str, Type[Model]]|None = None
+        self.hyperparams_grid: Dict[str, dict]|None = None
 
         # Load json config to attributes of Config class
         self._load_run_pipeline_config()
@@ -85,4 +92,18 @@ class Config:
             self.start_date = config.get("FEATURE_ENGINEERING").get("START_DATE")
             self.end_date = config.get("FEATURE_ENGINEERING").get("END_DATE")
             self.lags = config.get("FEATURE_ENGINEERING").get("LAGS")
-            self.forecast_horizon = config.get("FEATURE_ENGINEERING").get("FORECAST_HORIZON")
+
+            # Forcasting
+            self.forecast_horizon = config.get("FORECASTING").get("FORECAST_HORIZON")
+            self.validation_window = config.get("FORECASTING").get("VALIDATION_WINDOW")
+            self.min_nb_periods_required = config.get("FORECASTING").get("MIN_NB_PERIODS_REQUIRED")
+            models = {
+                "wls": WLSExponentialDecay,
+                "lasso": Lasso,
+                "ols": OLS
+            }
+            for model in config.get("FORECASTING").get("MODELS"):
+                if model not in models.keys():
+                    raise ValueError(f"Model {model} not implemented.")
+            self.models = {model: models[model] for model in config.get("FORECASTING").get("MODELS")}
+            self.hyperparams_grid = config.get("FORECASTING").get("HYPERPARAMS_GRID")

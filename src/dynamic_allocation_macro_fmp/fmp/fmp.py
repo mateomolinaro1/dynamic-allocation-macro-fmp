@@ -40,7 +40,7 @@ class FactorMimickingPortfolio:
         ys = ys.sort_index()
 
         # For each asset we run a regression
-        for i,col in enumerate(ys.columns):
+        for i,col in enumerate(ys.columns[:500]):
             logger.info(f"Running WLS ({i+1}/{len(ys.columns)})")
             y = ys.loc[:,col]
 
@@ -58,8 +58,8 @@ class FactorMimickingPortfolio:
                 logger.info(f"Not enough data for asset {col}")
                 continue
 
-            # res = Models.wls_exponential_decay(X=x,y=y,decay=self.config.decay)
-            wls = WLSExponentialDecay(decay=self.config.decay)
+            hyperparams = {"decay":self.config.decay}
+            wls = WLSExponentialDecay(**hyperparams)
             wls.fit(x=x, y=y)
             # Store
             date = y.index[-1]

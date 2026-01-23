@@ -23,8 +23,21 @@
   "FEATURE_ENGINEERING": {
     "START_DATE": "1959-01-01",
     "END_DATE": "2024-11-01",
-    "LAGS": [1,2,3,4,5,6],
-    "FORECAST_HORIZON": 1
+    "LAGS": [1]
+  },
+
+  "FORECASTING": {
+    "FORECAST_HORIZON": 1,
+    "VALIDATION_WINDOW": 12,
+    "MIN_NB_PERIODS_REQUIRED": 252,
+    "MODELS": ["lasso", "ols"],
+    "HYPERPARAMS_GRID": {
+      "ols": {},
+      "lasso": {
+        "alpha": [0.01, 10.0]
+      }
+    }
+
   }
 
 }

@@ -94,6 +94,7 @@ class FeaturesEngineering:
         self._crop_date_range()
         # Missing values will be handled later in the pipeline, more precisely when
         # passing the features to the model because we'll use expanding/rolling windows.
+        self._handle_missing_values()
         self._split_y_x()
 
 

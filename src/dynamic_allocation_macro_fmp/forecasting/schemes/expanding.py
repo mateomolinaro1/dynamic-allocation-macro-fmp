@@ -57,10 +57,13 @@ class ExpandingWindowScheme(EstimationScheme):
         self.oos_predictions = {m: pd.DataFrame(
             index=self.date_range,
             data=np.nan,
-            columns=self.config.macro_var_name
+            columns=[self.config.macro_var_name]
         ) for m in models}
-        self.best_score_all_models_overtime.columns = models.keys()
-        self.hyperparams_all_models_overtime = {
+        self.best_score_all_models_overtime = pd.DataFrame(
+            index=self.date_range,
+            columns=list(models.keys()),
+        )
+        self.best_hyperparams_all_models_overtime = {
             m: pd.DataFrame(
                 index=self.date_range,
                 columns=list(hyperparams_all_combinations[m][0].keys()),
@@ -98,7 +101,7 @@ class ExpandingWindowScheme(EstimationScheme):
                 # -----------------------------
                 # HYPERPARAMETER SEARCH
                 # -----------------------------
-                def evaluate(hyperparams):
+                def evaluate(hyperparams:dict):
                     model = ModelClass(**hyperparams)
                     model.fit(X_train, y_train)
 
@@ -107,7 +110,7 @@ class ExpandingWindowScheme(EstimationScheme):
                         val_d = val_data[val_data.index == d]
                         X_val, y_val = self._split_xy(val_d)
 
-                        if len(y_val) <= 1:
+                        if len(y_val) <= 0:
                             continue
 
                         y_hat = model.predict(X_val)
@@ -137,6 +140,14 @@ class ExpandingWindowScheme(EstimationScheme):
                         best_hyperparams = hp
 
                 # -----------------------------
+                # STORE VALIDATION RESULTS
+                # -----------------------------
+                self.best_score_all_models_overtime.loc[date_t, model_name] = best_score
+                if best_hyperparams is not None:
+                    for k, v in best_hyperparams.items():
+                        self.best_hyperparams_all_models_overtime[model_name].loc[date_t, k] = v
+
+                # -----------------------------
                 # FINAL TRAIN
                 # -----------------------------
                 full_train = self.data[self.data.index <= val_end]
@@ -151,8 +162,23 @@ class ExpandingWindowScheme(EstimationScheme):
 
                 y_hat = model_final.predict(X_test)
 
-                self.oos_predictions[model_name].loc[test_date,self.config.macro_var_name] = y_hat
-                self.oos_true.loc[test_date,self.config.macro_var_name] = y_test
+                self.oos_predictions[model_name].loc[test_date,self.config.macro_var_name] = y_hat.values[0]
+                self.oos_true.loc[test_date,self.config.macro_var_name] = y_test.values[0]
+
+                # -----------------------------
+                # STORE COEFFICIENTS (linear models only)
+                # -----------------------------
+                if model_name in linear_models:
+                    self.best_params_all_models_overtime[model_name].loc[date_t, "intercept"] = (
+                        model_final.model.intercept_
+                        if hasattr(model_final.model, "intercept_")
+                        else np.nan
+                    )
+
+                    self.best_params_all_models_overtime[model_name].loc[
+                        date_t,
+                        X_train.columns
+                    ] = model_final.model.coef_
 
                 logger.info(
                     f"{model_name} done in "
@@ -168,8 +194,8 @@ class ExpandingWindowScheme(EstimationScheme):
 
         train_data = self.data[self.data.index <= train_end]
         val_data = self.data[
-            (self.data[self.data.index] > train_end)
-            & (self.data[self.data.index] <= val_end)
+            (self.data.index > train_end)
+            & (self.data.index <= val_end)
         ]
 
         return train_data, val_data, val_end

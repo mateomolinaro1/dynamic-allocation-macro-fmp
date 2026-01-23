@@ -5,7 +5,7 @@ from typing import Tuple
 from statsmodels.regression.linear_model import RegressionResults
 from abc import ABC, abstractmethod
 from sklearn.linear_model import Lasso as SklearnLasso
-from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
+from sklearn.linear_model import LinearRegression, Ridge, ElasticNet
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.svm import SVR
 from sklearn.neural_network import MLPRegressor
@@ -104,8 +104,9 @@ class Model(ABC):
 
 class WLSExponentialDecay(Model):
 
-    def __init__(self, decay: float | int = 60):
-        self.decay = decay
+    def __init__(self, **kwargs):
+        self.hyperparams = dict(kwargs)
+        self.decay = self.hyperparams.get("decay", 60)
         self.results = None
         self.results_hac = None
         self.hac_bse = None
@@ -155,14 +156,15 @@ class Lasso(Model):
     """
     Lasso regression model.
     """
-    def __init__(self, alpha: float = 1.0):
+    def __init__(self,**kwargs):
         """
         Parameters
         ----------
         alpha : float
             Regularization strength.
         """
-        self.alpha = alpha
+        self.hyperparams = dict(kwargs)
+        self.alpha = self.hyperparams.get("alpha", 1.0)
         self.model = None
 
     def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
@@ -201,7 +203,7 @@ class Lasso(Model):
 """Série de modèles usuels provenant de de scikit-learn
 sur le modèle abstrait Model"""
 
-class LinearModel(Model):
+class OLS(Model):
 
     def __init__(self, **kwargs):
         self.model = LinearRegression(**kwargs)
