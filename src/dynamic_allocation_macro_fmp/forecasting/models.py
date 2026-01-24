@@ -3,12 +3,15 @@ import pandas as pd
 import statsmodels.api as sm
 from typing import Tuple
 from statsmodels.regression.linear_model import RegressionResults
+from statsmodels.tsa.statespace.dynamic_factor import DynamicFactor
 from abc import ABC, abstractmethod
 from sklearn.linear_model import Lasso as SklearnLasso
 from sklearn.linear_model import LinearRegression, Ridge, ElasticNet
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.svm import SVR
 from sklearn.neural_network import MLPRegressor
+from xgboost import XGBRegressor
+from lightgbm import LGBMRegressor
 
 # class Models:
 #
@@ -217,8 +220,8 @@ class OLS(Model):
 
 class RidgeModel(Model):
 
-    def __init__(self, alpha: float = 1.0, **kwargs):
-        self.model = Ridge(alpha=alpha, **kwargs)
+    def __init__(self, **kwargs):
+        self.model = Ridge(**kwargs)
 
     def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
         self.model.fit(x, y.values.ravel())
@@ -232,11 +235,8 @@ class RidgeModel(Model):
 
 class ElasticNetModel(Model):
 
-    def __init__(self, alpha: float = 0.1, l1_ratio: float = 0.5, **kwargs):
+    def __init__(self, **kwargs):
         self.model = ElasticNet(
-            alpha=alpha,
-            l1_ratio=l1_ratio,
-            max_iter=10_000,
             **kwargs
         )
 
@@ -252,10 +252,8 @@ class ElasticNetModel(Model):
 
 class RandomForestModel(Model):
 
-    def __init__(self, n_estimators: int = 500, random_state: int = 42, **kwargs):
+    def __init__(self, **kwargs):
         self.model = RandomForestRegressor(
-            n_estimators=n_estimators,
-            random_state=random_state,
             **kwargs
         )
 
@@ -271,12 +269,9 @@ class RandomForestModel(Model):
 
 class GradientBoostingModel(Model):
 
-    def __init__(self, n_estimators: int = 300, learning_rate: float = 0.05, **kwargs):
+    def __init__(self, **kwargs):
         self.model = GradientBoostingRegressor(
-            n_estimators=n_estimators,
-            learning_rate=learning_rate,
-            **kwargs
-        )
+            **kwargs)
 
     def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
         self.model.fit(x, y.values.ravel())
@@ -290,8 +285,8 @@ class GradientBoostingModel(Model):
 
 class SVRModel(Model):
 
-    def __init__(self, kernel: str = "rbf", C: float = 1.0, epsilon: float = 0.1, **kwargs):
-        self.model = SVR(kernel=kernel, C=C, epsilon=epsilon, **kwargs)
+    def __init__(self, **kwargs):
+        self.model = SVR(**kwargs)
 
     def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
         self.model.fit(x, y.values.ravel())
@@ -307,24 +302,109 @@ class NeuralNetModel(Model):
 
     def __init__(
         self,
-        hidden_layer_sizes=(50, 50),
-        activation="relu",
-        solver="adam",
-        max_iter=5_000,
-        random_state=42,
-        **kwargs
-    ):
+        **kwargs):
+
         self.model = MLPRegressor(
-            hidden_layer_sizes=hidden_layer_sizes,
-            activation=activation,
-            solver=solver,
-            max_iter=max_iter,
-            random_state=random_state,
-            **kwargs
-        )
+            **kwargs)
 
     def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
         self.model.fit(x, y.values.ravel())
+
+    def predict(self, x: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame(
+            self.model.predict(x),
+            index=x.index,
+            columns=["y_hat"]
+        )
+
+class DynamicFactorModel(Model):
+
+    def __init__(
+        self,
+        target_name,
+        standardize: bool = True,
+        **kwargs
+    ):
+        """
+        kwargs are passed directly to statsmodels DynamicFactor
+        (e.g. k_factors, factor_order, error_order, trend, ...)
+        """
+        self.standardize = standardize
+        self.target_name = target_name
+        self.df_kwargs = kwargs
+
+        self.model = None
+        self.results = None
+        self.mean_ = None
+        self.std_ = None
+        self.columns_ = None
+
+    def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
+
+        data = pd.concat([y, x], axis=1)
+        self.columns_ = data.columns
+
+        if self.standardize:
+            self.mean_ = data.mean()
+            self.std_ = data.std()
+            data = (data - self.mean_) / self.std_
+
+        self.model = DynamicFactor(
+            data,
+            **self.df_kwargs
+        )
+
+        self.results = self.model.fit(
+            disp=False
+        )
+
+    def predict(self, x: pd.DataFrame) -> pd.DataFrame:
+
+        h = len(x)
+
+        forecast = self.results.forecast(h)
+
+        if self.standardize:
+            forecast = forecast * self.std_ + self.mean_
+
+        return pd.DataFrame(
+            forecast[self.target_name].values,
+            index=x.index,
+            columns=["y_hat"]
+        )
+
+class LightGBMModel(Model):
+
+    def __init__(self, **kwargs):
+
+        self.model = LGBMRegressor(**kwargs)
+
+    def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
+        self.model.fit(
+            x,
+            y.values.ravel()
+        )
+
+    def predict(self, x: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame(
+            self.model.predict(x),
+            index=x.index,
+            columns=["y_hat"]
+        )
+
+class XGBoostModel(Model):
+
+    def __init__(self, **kwargs):
+        """
+        kwargs are passed directly to XGBRegressor
+        """
+        self.model = XGBRegressor(**kwargs)
+
+    def fit(self, x: pd.DataFrame, y: pd.DataFrame) -> None:
+        self.model.fit(
+            x,
+            y.values.ravel()
+        )
 
     def predict(self, x: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame(
