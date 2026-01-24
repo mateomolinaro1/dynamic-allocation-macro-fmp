@@ -213,7 +213,7 @@ class OLS(Model):
 
     def predict(self, x: pd.DataFrame) -> pd.DataFrame:
         y_pred = self.model.predict(x)
-        return pd.DataFrame(y_pred, index=x.index, columns=["prediction"])
+        return pd.DataFrame(y_pred, index=x.index, columns=["y_hat"])
 
 class RidgeModel(Model):
 
@@ -227,7 +227,7 @@ class RidgeModel(Model):
         return pd.DataFrame(
             self.model.predict(x),
             index=x.index,
-            columns=["prediction"]
+            columns=["y_hat"]
         )
 
 class ElasticNetModel(Model):
