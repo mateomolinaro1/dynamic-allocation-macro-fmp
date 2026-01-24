@@ -39,6 +39,7 @@ class Config:
         # FMP
         self.decay: int|float|None = None
         self.macro_var_name: str|None = None
+        self.fmp_min_nb_periods_required: int|None = None
 
         # Feature engineering
         self.start_date: str|None = None
@@ -87,6 +88,7 @@ class Config:
             # FMP
             self.decay = config.get("FMP").get("DECAY")
             self.macro_var_name = config.get("FMP").get("MACRO_VAR_NAME")
+            self.fmp_min_nb_periods_required = config.get("FMP").get("MIN_NB_PERIODS_REQUIRED")
 
             # Feature engineering
             self.start_date = config.get("FEATURE_ENGINEERING").get("START_DATE")

@@ -32,47 +32,57 @@ class FactorMimickingPortfolio:
 
         self.bayesian_betas = self._empty_like()
 
-    def fit_wls(self)->None:
+    def get_betas(self):
+        self._fit_wls()
+        self.bayesian_betas = self._get_bayesian_betas()
+
+    def _fit_wls(self)->None:
         # Get X and ys (ys are y for each asset)
         X = self._get_x()
         X = X.sort_index()
         ys = self._get_ys()
         ys = ys.sort_index()
 
-        # For each asset we run a regression
-        for i,col in enumerate(ys.columns[:500]):
-            logger.info(f"Running WLS ({i+1}/{len(ys.columns)})")
-            y = ys.loc[:,col]
+        # Expanding scheme
+        for idx,date in enumerate(X.index[self.config.fmp_min_nb_periods_required:]):
+            logger.info(f"Fitting WLS for date {date.date()} ({idx+1}/{len(X.index[self.config.fmp_min_nb_periods_required:])})")
+            X_subset = X.loc[:date,:]
+            ys_subset = ys.loc[:date,:]
 
-            # Align X and y
-            xy = pd.merge_asof(left=y, right=X, left_index=True, right_index=True, direction="backward")
-            xy = xy.dropna(axis=0, how="any")
+            # For each asset we run a regression
+            for i,col in enumerate(ys.columns):
+                logger.info(f"Running WLS ({i+1}/{len(ys_subset.columns)})")
+                y = ys_subset.loc[:,col]
 
-            # Retrieve x and y
-            x = xy.loc[:,X.columns]
-            y = xy.loc[:,col]
+                # Align X and y
+                xy = pd.merge_asof(left=y, right=X_subset, left_index=True, right_index=True, direction="backward")
+                xy = xy.dropna(axis=0, how="any")
 
-            # Model
-            min_obs = X.shape[1] + 1  # parameters incl. constant
-            if len(y) <= min_obs:
-                logger.info(f"Not enough data for asset {col}")
-                continue
+                # Retrieve x and y
+                x = xy.loc[:,X_subset.columns]
+                y = xy.loc[:,col]
 
-            hyperparams = {"decay":self.config.decay}
-            wls = WLSExponentialDecay(**hyperparams)
-            wls.fit(x=x, y=y)
-            # Store
-            date = y.index[-1]
-            self.betas_macro.loc[date,col] = wls.results.params.loc[self.config.macro_var_name]
-            self.betas_mkt.loc[date, col] = wls.results.params.loc["market_premium"]
+                # Model
+                min_obs = X_subset.shape[1] + 1  # parameters incl. constant
+                if len(y) <= min_obs:
+                    logger.info(f"Not enough data for asset {col}")
+                    continue
 
-            self.white_var_betas.loc[date, col] = (wls.results.HC0_se**2).loc[self.config.macro_var_name]
-            self.newey_west_var_betas.loc[date, col] = (wls.hac_bse**2).loc[self.config.macro_var_name]
+                hyperparams = {"decay":self.config.decay}
+                wls = WLSExponentialDecay(**hyperparams)
+                wls.fit(x=x, y=y)
+                # Store
+                date = y.index[-1]
+                self.betas_macro.loc[date,col] = wls.results.params.loc[self.config.macro_var_name]
+                self.betas_mkt.loc[date, col] = wls.results.params.loc["market_premium"]
 
-            self.default_pvalue.loc[date, col] = wls.results.pvalues.loc[self.config.macro_var_name]
-            self.newey_west_pvalue.loc[date, col] = wls.hac_pvalues.loc[self.config.macro_var_name]
+                self.white_var_betas.loc[date, col] = (wls.results.HC0_se**2).loc[self.config.macro_var_name]
+                self.newey_west_var_betas.loc[date, col] = (wls.hac_bse**2).loc[self.config.macro_var_name]
 
-            self.adjusted_rsquared.loc[date, col] = wls.results.rsquared_adj
+                self.default_pvalue.loc[date, col] = wls.results.pvalues.loc[self.config.macro_var_name]
+                self.newey_west_pvalue.loc[date, col] = wls.hac_pvalues.loc[self.config.macro_var_name]
+
+                self.adjusted_rsquared.loc[date, col] = wls.results.rsquared_adj
 
         return
 
