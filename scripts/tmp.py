@@ -1,3 +1,5 @@
+import pandas as pd
+
 from dynamic_allocation_macro_fmp.utils.config import Config
 from dynamic_allocation_macro_fmp.data.data import DataManager
 from dynamic_allocation_macro_fmp.fmp.fmp import FactorMimickingPortfolio
@@ -14,7 +16,6 @@ logging.basicConfig(
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     )
 config = Config()
-
 data_manager = DataManager(config=config)
 fmp = FactorMimickingPortfolio(
     config=config,
@@ -22,8 +23,7 @@ fmp = FactorMimickingPortfolio(
     market_returns=None,
     rf=None
 )
-fmp.fit_wls()
-b=fmp._get_bayesian_betas()
+fmp.get_betas()
 
 # Vizu.plot_time_series(
 #     data=fmp.betas_macro,

@@ -20,3 +20,9 @@ wheels/
 
 # Others
 sandbox.txt
+
+outputs/results/*
+!outputs/results/.gitkeep
+
+data/market/*
+!data/.gitkeep

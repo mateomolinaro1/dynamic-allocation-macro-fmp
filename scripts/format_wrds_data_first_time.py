@@ -16,7 +16,7 @@ logging.basicConfig(
 config = Config()
 
 data_manager = DataManager(config=config)
-res = data_manager._fetch_data_from_s3()
+res = data_manager._fetch_from_s3()
 df = res["prices"].copy()
 df["custom_month"] = (
     df["date"].dt.to_period("M")
