@@ -247,7 +247,7 @@ class ElasticNetModel(Model):
         return pd.DataFrame(
             self.model.predict(x),
             index=x.index,
-            columns=["prediction"]
+            columns=["y_hat"]
         )
 
 class RandomForestModel(Model):
@@ -266,7 +266,7 @@ class RandomForestModel(Model):
         return pd.DataFrame(
             self.model.predict(x),
             index=x.index,
-            columns=["prediction"]
+            columns=["y_hat"]
         )
 
 class GradientBoostingModel(Model):
@@ -285,7 +285,7 @@ class GradientBoostingModel(Model):
         return pd.DataFrame(
             self.model.predict(x),
             index=x.index,
-            columns=["prediction"]
+            columns=["y_hat"]
         )
 
 class SVRModel(Model):
@@ -300,7 +300,7 @@ class SVRModel(Model):
         return pd.DataFrame(
             self.model.predict(x),
             index=x.index,
-            columns=["prediction"]
+            columns=["y_hat"]
         )
 
 class NeuralNetModel(Model):
@@ -330,5 +330,5 @@ class NeuralNetModel(Model):
         return pd.DataFrame(
             self.model.predict(x),
             index=x.index,
-            columns=["prediction"]
+            columns=["y_hat"]
         )
