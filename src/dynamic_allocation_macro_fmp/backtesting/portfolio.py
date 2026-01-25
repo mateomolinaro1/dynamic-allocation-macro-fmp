@@ -1,3 +1,5 @@
+from multiprocessing.managers import Value
+
 import polars as pl
 from typing import Union
 import pandas as pd
@@ -262,10 +264,9 @@ class CreatePortfolio:
 class WeightingScheme(ABC):
     """Abstract class to define the interface for the weighting scheme"""
 
-    def __init__(self, returns: pd.DataFrame, aligned_returns:pd.DataFrame, signals: pd.DataFrame, rebal_periods: Union[int, None],
+    def __init__(self, returns: pd.DataFrame, signals: pd.DataFrame, rebal_periods: Union[int, None],
                  portfolio_type: str = "long_only"):
         self.returns = returns
-        self.aligned_returns = aligned_returns
         self.signals = signals
         if not isinstance(rebal_periods, (int, type(None))):
             raise ValueError("rebal_periods must be an int or None.")
@@ -297,9 +298,9 @@ class WeightingScheme(ABC):
 class EqualWeightingScheme(WeightingScheme):
     """Class to implement the equal weighting scheme"""
 
-    def __init__(self, returns: pd.DataFrame, aligned_returns:pd.DataFrame, signals: pd.DataFrame, rebal_periods: int = 0,
+    def __init__(self, returns: pd.DataFrame, signals: pd.DataFrame, rebal_periods: int = 0,
                  portfolio_type: str = "long_only"):
-        super().__init__(returns, aligned_returns, signals, rebal_periods, portfolio_type)
+        super().__init__(returns, signals, rebal_periods, portfolio_type)
 
     def compute_weights(
             self,
@@ -420,9 +421,22 @@ class EqualWeightingScheme(WeightingScheme):
                 num_idx = self.rebalanced_weights.index.get_loc(date)
                 prev_weights = self.rebalanced_weights.iloc[num_idx-1,:]
                 aligned_ret = self.returns.iloc[num_idx,:]
-                drifted_w = prev_weights*(1+aligned_ret)
-                drifted_w = drifted_w/(drifted_w.sum())
-                self.rebalanced_weights.loc[date,:] = drifted_w
+
+                # PnL-based drift (self-financing)
+                pnl = prev_weights * aligned_ret
+                drifted_w = prev_weights + pnl
+
+                # Normalize by gross exposure
+                gross_exposure = drifted_w.abs().sum()
+
+                if gross_exposure > 0:
+                    drifted_w = drifted_w / gross_exposure
+                else:
+                    drifted_w[:] = 0.0
+                # drifted_w = prev_weights * (1 + aligned_ret)
+                # drifted_w = drifted_w / (drifted_w.sum())
+
+                self.rebalanced_weights.loc[date, :] = drifted_w
 
             else:
                 continue

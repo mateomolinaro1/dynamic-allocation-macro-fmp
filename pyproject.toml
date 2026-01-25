@@ -6,12 +6,14 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "boto3>=1.42.29",
+    "lightgbm>=4.6.0",
     "matplotlib>=3.10.8",
     "pandas>=2.3.3",
     "polars>=1.37.1",
     "pyarrow>=22.0.0",
     "scikit-learn>=1.8.0",
     "statsmodels>=0.14.6",
+    "xgboost>=3.1.3",
 ]
 
 [tool.setuptools]

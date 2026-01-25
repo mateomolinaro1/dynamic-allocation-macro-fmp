@@ -2,12 +2,11 @@ from abc import ABC, abstractmethod
 from typing import Union, Tuple
 import pandas as pd
 import numpy as np
-import src.alpha_in_analysts.backtester.utilities as utilities
+import dynamic_allocation_macro_fmp.backtesting.utilities as utilities
 
 class Strategy(ABC):
     """Abstract class to define the interface for the strategy"""
-    def __init__(self, prices: pd.DataFrame, returns:pd.DataFrame):
-        self.prices = prices
+    def __init__(self, returns:pd.DataFrame):
         self.returns = returns
         self.signals_values = None
         self.signals = None
@@ -37,30 +36,31 @@ class BuyAndHold(Strategy):
 class CrossSectionalPercentiles(Strategy):
     """ Class to implement the cross-sectional percentiles strategy"""
     def __init__(self,
-                 prices:pd.DataFrame,
                  returns:pd.DataFrame,
-                 signal_function,
+                 signal_function=None,
                  signal_function_inputs:dict=None,
+                 signal_values: pd.DataFrame|None=None,
                  percentiles_winsorization: Tuple[int, int] = (1, 99)
                  ):
         """
         Initializes the CrossSectionalPercentiles strategy.
 
         Parameters:
-        - prices: pd.DataFrame, price data for the assets.
         - returns: pd.DataFrame, return data for the assets.
-        - signal_function: callable, the function to compute the signals.
+        - signal_function: callable, the function to compute the signals. Or none if the signals are precomputed.
         - signal_function_inputs: dict, arguments to be passed to signal_function. Keywords of the dict must match
         argument names of the function.
+        - signal_values: pd.DataFrame|None, optional, precomputed signals dataframe. If provided, the signal_function will not be used.
         - percentiles_portfolios: Tuple[int, int], percentiles to apply to signal values.
         - percentiles_winsorization: Tuple[int, int], percentiles to apply to signal values for winsorization.
         - industry_segmentation: Union[None, pd.DataFrame], optional, industry segmentation data for the assets. This df must have the same
         shape, indices and columns as the returns dataframe. It must contain the industry segmentation for each asset. If this dataframe
         is provided, the signals will be computed within each industry segment.
         """
-        super().__init__(prices, returns)
-        if not callable(signal_function):
+        super().__init__(returns)
+        if not callable(signal_function) and signal_function is not None:
             raise ValueError("signal_function must be a callable function.")
+        self.signal_values = signal_values
         self.signal_function = signal_function
         self.signal_function_inputs = signal_function_inputs if signal_function_inputs is not None else {}
         if not isinstance(percentiles_winsorization, tuple) and len(percentiles_winsorization) == 2 and all(
@@ -70,8 +70,12 @@ class CrossSectionalPercentiles(Strategy):
 
     def compute_signals_values(self):
         """ Compute the signals for the cross-sectional percentiles strategy"""
-        # Compute signal values
-        self.signals_values = self.signal_function(**self.signal_function_inputs)
+        if self.signal_values is not None:
+            self.signals_values = self.signal_values
+        else:
+            # Compute signal values
+            self.signals_values = self.signal_function(**self.signal_function_inputs)
+
         # Clean the signal values
         self.signals_values = utilities.clean_dataframe(self.signals_values)
         # Compute zscores

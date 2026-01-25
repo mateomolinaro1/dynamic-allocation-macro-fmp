@@ -5,6 +5,10 @@ from dynamic_allocation_macro_fmp.data.data import DataManager
 from dynamic_allocation_macro_fmp.utils.config import Config, logger
 from dynamic_allocation_macro_fmp.forecasting.models import WLSExponentialDecay
 from dynamic_allocation_macro_fmp.forecasting.features_engineering import FeaturesEngineering
+from dynamic_allocation_macro_fmp.utils.s3_utils import s3Utils
+from dynamic_allocation_macro_fmp.backtesting.portfolio import EqualWeightingScheme
+from dynamic_allocation_macro_fmp.backtesting.strategies import CrossSectionalPercentiles, BuyAndHold
+from dynamic_allocation_macro_fmp.backtesting.backtest_pandas import Backtest
 
 class FactorMimickingPortfolio:
     def __init__(
@@ -22,6 +26,7 @@ class FactorMimickingPortfolio:
         self.rf = rf
 
         # storing results
+        # Macro exposure
         self.betas_macro = self._empty_like()
         self.betas_mkt = self._empty_like()
         self.white_var_betas = self._empty_like()
@@ -29,10 +34,102 @@ class FactorMimickingPortfolio:
         self.default_pvalue = self._empty_like()
         self.newey_west_pvalue = self._empty_like()
         self.adjusted_rsquared = self._empty_like()
-
         self.bayesian_betas = self._empty_like()
+        # Portfolio returns
+        self.positive_betas_fmp_returns = None
+        self.negative_betas_fmp_returns = None
+        self.benchmark_returns = None
 
-    def get_betas(self):
+    def build_macro_portfolios(self):
+        if self.bayesian_betas.isna().all().all():
+            try:
+                # Download from s3
+                self.bayesian_betas = s3Utils.pull_file_from_s3(
+                    path=self.config.s3_path + "/outputs/fmp/fmp_bayesian_betas.parquet",
+                    file_type="parquet"
+                )
+            except Exception as e:
+                logger.info("Could not download bayesian_betas from s3, computing them locally.")
+                self._get_betas()
+
+        # Create portfolios
+        strategy = CrossSectionalPercentiles(
+            returns=self.asset_returns,
+            signal_function=None,
+            signal_function_inputs=None,
+            signal_values=self.bayesian_betas,
+            percentiles_winsorization=self.config.percentiles_winsorization
+        )
+        strategy.compute_signals_values()
+        strategy.compute_signals(
+            percentiles_portfolios=self.config.percentiles_portfolios,
+            industry_segmentation=None
+        )
+
+        # Positive betas portfolio
+        positive_ptf = EqualWeightingScheme(
+            returns=self.asset_returns,
+            signals=strategy.signals,
+            rebal_periods=self.config.rebal_periods,
+            portfolio_type=self.config.portfolio_type_positive
+        )
+        positive_ptf.compute_weights()
+        positive_ptf.rebalance_portfolio()
+        positive_backtester = Backtest(
+            returns=self.asset_returns.shift(-1),
+            weights=positive_ptf.rebalanced_weights,
+            turnover=positive_ptf.turnover,
+            transaction_costs=self.config.transaction_costs,
+            strategy_name="POSITIVE_" + self.config.strategy_name
+        )
+        positive_backtester.run_backtest()
+        self.positive_betas_fmp_returns = positive_backtester.cropped_portfolio_net_returns
+
+        # Negative betas portfolio
+        negative_ptf = EqualWeightingScheme(
+            returns=self.asset_returns,
+            signals=strategy.signals,
+            rebal_periods=self.config.rebal_periods,
+            portfolio_type=self.config.portfolio_type_negative
+        )
+        negative_ptf.compute_weights()
+        negative_ptf.rebalance_portfolio()
+        negative_backtester = Backtest(
+            returns=self.asset_returns.shift(-1),
+            weights=negative_ptf.rebalanced_weights,
+            turnover=negative_ptf.turnover,
+            transaction_costs=self.config.transaction_costs,
+            strategy_name="NEGATIVE_" + self.config.strategy_name
+        )
+        negative_backtester.run_backtest()
+        self.negative_betas_fmp_returns = negative_backtester.cropped_portfolio_net_returns
+
+        # Benchmark
+        bench_strategy = BuyAndHold(
+            returns=self.asset_returns
+        )
+        bench_strategy.compute_signals_values()
+        bench_strategy.compute_signals()
+        bench_ptf = EqualWeightingScheme(
+            returns=self.asset_returns,
+            signals=bench_strategy.signals,
+            rebal_periods=self.config.rebal_periods,
+            portfolio_type="long_only"
+        )
+        bench_ptf.compute_weights()
+        bench_ptf.rebalance_portfolio()
+        bench_backtester = Backtest(
+            returns=self.asset_returns.shift(-1),
+            weights=bench_ptf.rebalanced_weights,
+            turnover=bench_ptf.turnover,
+            transaction_costs=self.config.transaction_costs,
+            strategy_name="BENCHMARK_LO_EW"
+        )
+        bench_backtester.run_backtest()
+        self.benchmark_returns = bench_backtester.cropped_portfolio_net_returns
+
+
+    def _get_betas(self):
         self._fit_wls()
         self.bayesian_betas = self._get_bayesian_betas()
 
@@ -51,7 +148,7 @@ class FactorMimickingPortfolio:
 
             # For each asset we run a regression
             for i,col in enumerate(ys.columns):
-                logger.info(f"Running WLS ({i+1}/{len(ys_subset.columns)})")
+                # logger.info(f"Running WLS ({i+1}/{len(ys_subset.columns)})")
                 y = ys_subset.loc[:,col]
 
                 # Align X and y

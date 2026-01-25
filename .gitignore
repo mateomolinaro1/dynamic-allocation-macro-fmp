@@ -24,5 +24,8 @@ sandbox.txt
 outputs/results/*
 !outputs/results/.gitkeep
 
+outputs/figures/*
+!outputs/figures/.gitkeep
+
 data/market/*
 !data/.gitkeep

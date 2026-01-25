@@ -23,7 +23,46 @@ fmp = FactorMimickingPortfolio(
     market_returns=None,
     rf=None
 )
-fmp.get_betas()
+# fmp.build_macro_portfolios()
+#
+# fmp_returns = pd.concat([fmp.positive_betas_fmp_returns, fmp.negative_betas_fmp_returns, fmp.benchmark_returns], axis=1)
+# from dynamic_allocation_macro_fmp.utils.vizu import Vizu
+# Vizu.plot_time_series(
+#     data=fmp_returns.loc["2010-01-02":,:].cumsum(),
+#     title="LO EW and SH EW FMP Returns over Time",
+#     ylabel="Cumulative Returns",
+#     xlabel="Date",
+#     save_path=r"C:\Users\mateo\Code\ENSAE\MacroML\DynamicAllocationMacroFMP\outputs\figures\fmp_returns.png",
+#     show=False,
+#     block=False
+# )
+#
+# # LO
+# Vizu.plot_time_series(
+#     data=(1+fmp.positive_betas_fmp_returns.loc["2010-01-02":,:]).cumprod()-1,
+#     title="LO EW FMP Returns over Time",
+#     ylabel="Cumulative Returns",
+#     xlabel="Date",
+#     save_path=r"C:\Users\mateo\Code\ENSAE\MacroML\DynamicAllocationMacroFMP\outputs\figures\positive_fmp_returns.png",
+#     show=False,
+#     block=False
+# )
+# # SO
+# Vizu.plot_time_series(
+#     data=fmp.negative_betas_fmp_returns.loc["2010-01-02":,:].cumsum(),
+#     title="SO EW FMP Returns over Time",
+#     ylabel="Cumulative Returns",
+#     xlabel="Date",
+#     save_path=r"C:\Users\mateo\Code\ENSAE\MacroML\DynamicAllocationMacroFMP\outputs\figures\negative_fmp_returns.png",
+#     show=False,
+#     block=False
+# )
+
+# from dynamic_allocation_macro_fmp.forecasting.features_selection import PCAFactorExtractor
+# pca_extractor = PCAFactorExtractor(
+#     n_factors=5
+# )
+# factors = pca_extractor.fit_transform(fe.x)
 
 # Vizu.plot_time_series(
 #     data=fmp.betas_macro,
@@ -64,6 +103,42 @@ exp_window.run(
     models=config.models,
     hyperparams_grid=config.hyperparams_grid
 )
+
+# from pathlib import Path
+# import pickle
+# path=r"C:\Users\mateo\Code\ENSAE\MacroML\DynamicAllocationMacroFMP\outputs\results\forecasting"
+# path = Path(path)
+# for attr_name, attr_value in vars(exp_window).items():
+#
+#     # Skip empty attributes
+#     if attr_value is None:
+#         continue
+#
+#     attr_path = path / attr_name
+#
+#     # -------------------------
+#     # DataFrame → parquet OR pickle fallback
+#     # -------------------------
+#     if isinstance(attr_value, pd.DataFrame):
+#         try:
+#             attr_value.to_parquet(attr_path.with_suffix(".parquet"))
+#         except Exception as e:
+#             print(
+#                 f"Parquet failed for {attr_name}, fallback to pickle: {e}"
+#             )
+#             with open(attr_path.with_suffix(".pkl"), "wb") as f:
+#                 pickle.dump(attr_value, f)
+#
+#     # -------------------------
+#     # Dict → pickle
+#     # -------------------------
+#     elif isinstance(attr_value, dict):
+#         with open(attr_path.with_suffix(".pkl"), "wb") as f:
+#             pickle.dump(attr_value, f)
+#
+#     else:
+#         # silently skip unsupported types
+#         continue
 
 
 

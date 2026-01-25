@@ -18,26 +18,94 @@
   "FMP": {
     "DECAY": 60,
     "MACRO_VAR_NAME": "CPIAUCSL",
-    "MIN_NB_PERIODS_REQUIRED": 60
+    "MIN_NB_PERIODS_REQUIRED": 60,
+    "PERCENTILES_WINSORIZATION": [2, 98],
+    "PERCENTILES_PORTFOLIOS": [10, 90],
+    "REBAL_PERIODS": 1,
+    "PORTFOLIO_TYPE_POSITIVE": "long_only",
+    "PORTFOLIO_TYPE_NEGATIVE": "short_only",
+    "TRANSACTION_COSTS_BPS": 10,
+    "STRATEGY_NAME": "EW_MACRO_FMP"
   },
 
   "FEATURE_ENGINEERING": {
     "START_DATE": "1959-01-01",
     "END_DATE": "2024-11-01",
-    "LAGS": [1]
+    "LAGS": []
   },
 
   "FORECASTING": {
     "FORECAST_HORIZON": 1,
     "VALIDATION_WINDOW": 12,
     "MIN_NB_PERIODS_REQUIRED": 252,
-    "MODELS": ["lasso", "ols"],
-    "HYPERPARAMS_GRID": {
-      "ols": {},
-      "lasso": {
-        "alpha": [0.01, 10.0]
-      }
+    "MODELS": [
+      "ols",
+      "lasso",
+      "ridge",
+      "elastic_net",
+      "random_forest",
+      "gradient_boosting",
+      "svr",
+      "neural_net",
+      "lightgbm",
+      "xgboost"
+    ],
+"HYPERPARAMS_GRID": {
+    "ols": {},
+
+    "lasso": {
+      "alpha": [0.01, 0.1, 1.0, 10.0]
+    },
+
+    "ridge": {
+      "alpha": [0.01, 0.1, 1.0, 10.0]
+    },
+
+    "elastic_net": {
+      "alpha": [0.01, 0.1, 1.0, 10.0],
+      "l1_ratio": [0.1, 0.5, 0.9]
+    },
+
+    "random_forest": {
+      "n_estimators": [100, 300],
+      "max_depth": [null, 5, 10, 20, 30],
+      "min_samples_leaf": [5]
+    },
+
+    "gradient_boosting": {
+      "n_estimators": [100, 300],
+      "learning_rate": [0.01, 0.1],
+      "max_depth": [null, 3, 5]
+    },
+
+    "svr": {
+      "C": [0.1, 1.0, 10.0],
+      "epsilon": [0.01, 0.1],
+      "kernel": ["rbf"]
+    },
+
+    "neural_net": {
+      "hidden_layer_sizes": [[16], [32], [32, 16]],
+      "alpha": [0.0001, 0.001],
+      "learning_rate_init": [0.001]
+    },
+
+    "lightgbm": {
+      "n_estimators": [200, 500],
+      "learning_rate": [0.01, 0.1],
+      "num_leaves": [15, 30],
+      "max_depth": [-1, 10]
+    },
+
+    "xgboost": {
+      "n_estimators": [200, 500],
+      "learning_rate": [0.01, 0.1],
+      "max_depth": [3, 6],
+      "subsample": [0.8, 1.0],
+      "colsample_bytree": [0.8, 1.0]
     }
+  }
+
 
   }
 

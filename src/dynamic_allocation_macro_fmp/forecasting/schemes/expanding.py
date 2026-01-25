@@ -8,6 +8,7 @@ from typing import Dict, Iterable, Type
 from .base import EstimationScheme
 import logging
 from dynamic_allocation_macro_fmp.forecasting.models import Model
+from dynamic_allocation_macro_fmp.forecasting.features_selection import PCAFactorExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +141,7 @@ class ExpandingWindowScheme(EstimationScheme):
                         best_hyperparams = hp
 
                 # -----------------------------
-                # STORE VALIDATION RESULTS
+                # STORE OOS RESULTS
                 # -----------------------------
                 self.best_score_all_models_overtime.loc[date_t, model_name] = best_score
                 if best_hyperparams is not None:
