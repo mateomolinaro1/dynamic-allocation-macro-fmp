@@ -226,4 +226,3 @@ class ExpandingWindowScheme(EstimationScheme):
         ]
 
         return train_data, val_data, val_end
-
