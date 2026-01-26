@@ -87,6 +87,7 @@ exp_window = ExpandingWindowScheme(
     validation_window=config.validation_window,
     min_nb_periods_required=config.min_nb_periods_required
 )
+
 # models = {
 #     "wls": WLSExponentialDecay,
 #     "lasso": Lasso
@@ -103,6 +104,7 @@ exp_window.run(
     models=config.models,
     hyperparams_grid=config.hyperparams_grid
 )
+print(exp_window.best_score_all_models_overtime.mean())
 
 # from pathlib import Path
 # import pickle

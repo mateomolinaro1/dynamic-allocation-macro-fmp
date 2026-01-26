@@ -38,17 +38,12 @@
     "FORECAST_HORIZON": 1,
     "VALIDATION_WINDOW": 12,
     "MIN_NB_PERIODS_REQUIRED": 252,
+    "WITH_PCA": true,
+    "NB_PCA_COMPONENTS": 12,
     "MODELS": [
       "ols",
       "lasso",
-      "ridge",
-      "elastic_net",
-      "random_forest",
-      "gradient_boosting",
-      "svr",
-      "neural_net",
-      "lightgbm",
-      "xgboost"
+      "ridge"
     ],
 "HYPERPARAMS_GRID": {
     "ols": {},
@@ -59,50 +54,6 @@
 
     "ridge": {
       "alpha": [0.01, 0.1, 1.0, 10.0]
-    },
-
-    "elastic_net": {
-      "alpha": [0.01, 0.1, 1.0, 10.0],
-      "l1_ratio": [0.1, 0.5, 0.9]
-    },
-
-    "random_forest": {
-      "n_estimators": [100, 300],
-      "max_depth": [null, 5, 10, 20, 30],
-      "min_samples_leaf": [5]
-    },
-
-    "gradient_boosting": {
-      "n_estimators": [100, 300],
-      "learning_rate": [0.01, 0.1],
-      "max_depth": [null, 3, 5]
-    },
-
-    "svr": {
-      "C": [0.1, 1.0, 10.0],
-      "epsilon": [0.01, 0.1],
-      "kernel": ["rbf"]
-    },
-
-    "neural_net": {
-      "hidden_layer_sizes": [[16], [32], [32, 16]],
-      "alpha": [0.0001, 0.001],
-      "learning_rate_init": [0.001]
-    },
-
-    "lightgbm": {
-      "n_estimators": [200, 500],
-      "learning_rate": [0.01, 0.1],
-      "num_leaves": [15, 30],
-      "max_depth": [-1, 10]
-    },
-
-    "xgboost": {
-      "n_estimators": [200, 500],
-      "learning_rate": [0.01, 0.1],
-      "max_depth": [3, 6],
-      "subsample": [0.8, 1.0],
-      "colsample_bytree": [0.8, 1.0]
     }
   }
 

@@ -62,6 +62,8 @@ class Config:
         self.min_nb_periods_required: int|None = None
         self.models: Dict[str, Type[Model]]|None = None
         self.hyperparams_grid: Dict[str, dict]|None = None
+        self.with_pca: bool|None = None
+        self.nb_pca_components: int|None = None
 
         # Load json config to attributes of Config class
         self._load_run_pipeline_config()
@@ -133,4 +135,13 @@ class Config:
                 if model not in models.keys():
                     raise ValueError(f"Model {model} not implemented.")
             self.models = {model: models[model] for model in config.get("FORECASTING").get("MODELS")}
+            self.with_pca = config.get("FORECASTING").get("WITH_PCA")
+            self.nb_pca_components = config.get("FORECASTING").get("NB_PCA_COMPONENTS")
+            if self.with_pca:
+                self.models.update({model+"_pca": models[model] for model in config.get("FORECASTING").get("MODELS")})
             self.hyperparams_grid = config.get("FORECASTING").get("HYPERPARAMS_GRID")
+            if self.with_pca:
+                for model_name, model in self.models.items():
+                    if model_name.endswith("_pca"):
+                        base_model_name = model_name[:-4]
+                        self.hyperparams_grid[model_name] = self.hyperparams_grid.get(base_model_name)

@@ -33,17 +33,18 @@ class ExpandingWindowScheme(EstimationScheme):
         # -----------------------------
         linear_models = []
         for model_name, model in models.items():
-            if model_name in ["ridge","lasso","elastic_net","ols"]:
+            if model_name in ["ridge","lasso","elastic_net","ols",
+                              "ridge_pca","lasso_pca","elastic_net_pca","ols_pca"]:
                 linear_models.append(model_name)
 
+        columns_list = ["intercept"] + list(
+                        self.data.drop(columns=[self.config.macro_var_name]).columns
+                    )
         self.best_params_all_models_overtime = {
             m: (
                 pd.DataFrame(
                     index=self.date_range,
-                    columns=["intercept"]
-                            + list(
-                        self.data.drop(columns=[self.config.macro_var_name]).columns
-                    ),
+                    columns=columns_list,
                     dtype=float,
                 )
                 if m in linear_models
@@ -51,6 +52,17 @@ class ExpandingWindowScheme(EstimationScheme):
             )
             for m in models
         }
+        # Add pca models if needed
+        if self.config.with_pca:
+            columns_list = ["intercept"] + [f"factor_{i + 1}" for i in range(self.config.nb_pca_components)]
+            for model_name, _ in models.items():
+                if model_name in ["ridge_pca","lasso_pca","elastic_net_pca","ols_pca"]:
+                    self.best_params_all_models_overtime[model_name] = pd.DataFrame(
+                        index=self.date_range,
+                        columns=columns_list,
+                        dtype=float,
+                    )
+
 
         # -----------------------------
         # STORAGE
@@ -95,6 +107,16 @@ class ExpandingWindowScheme(EstimationScheme):
 
             for model_name, ModelClass in models.items():
                 logger.info(f"Model: {model_name}")
+
+                # Apply PCA if needed
+                if model_name.endswith("_pca"):
+                    pca_extractor = PCAFactorExtractor(
+                        n_factors=self.config.nb_pca_components
+                    )
+                    X_train = pca_extractor.fit_transform(X_train)
+                    val_x = val_data.drop(columns=[self.config.macro_var_name])
+                    val_x = pca_extractor.fit_transform(val_x)
+                    val_data = pd.concat([val_x, val_data[[self.config.macro_var_name]]], axis=1)
 
                 best_score = -np.inf
                 best_hyperparams = None
@@ -153,6 +175,8 @@ class ExpandingWindowScheme(EstimationScheme):
                 # -----------------------------
                 full_train = self.data[self.data.index <= val_end]
                 X_full, y_full = self._split_xy(full_train)
+                if model_name.endswith("_pca"):
+                    X_full = pca_extractor.fit_transform(X_full)
 
                 model_final = ModelClass(**best_hyperparams)
                 model_final.fit(X_full, y_full)
@@ -160,6 +184,8 @@ class ExpandingWindowScheme(EstimationScheme):
                 test_date = self.date_range[t]
                 test_df = self.data[self.data.index == test_date]
                 X_test, y_test = self._split_xy(test_df)
+                if model_name.endswith("_pca"):
+                    X_test = pca_extractor.transform(X_test)
 
                 y_hat = model_final.predict(X_test)
 
