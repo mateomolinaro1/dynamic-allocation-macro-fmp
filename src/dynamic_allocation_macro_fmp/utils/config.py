@@ -49,6 +49,7 @@ class Config:
         self.portfolio_type_positive: str|None = None
         self.portfolio_type_negative: str|None = None
         self.transaction_costs: float|int|None = None
+        self.fmp_bench_transaction_costs: float|int|None = None
         self.strategy_name: str|None = None
 
         # Feature engineering
@@ -64,6 +65,11 @@ class Config:
         self.hyperparams_grid: Dict[str, dict]|None = None
         self.with_pca: bool|None = None
         self.nb_pca_components: int|None = None
+
+        # Dynamic Allocation
+        self.load_or_train_models: str|None = None  # "load" or "train"
+        self.dynamic_allocation_rebal_periods: int|None = None
+        self.dynamic_allocation_tc: float|int|None = None
 
         # Load json config to attributes of Config class
         self._load_run_pipeline_config()
@@ -107,6 +113,7 @@ class Config:
             self.portfolio_type_positive = config.get("FMP").get("PORTFOLIO_TYPE_POSITIVE")
             self.portfolio_type_negative = config.get("FMP").get("PORTFOLIO_TYPE_NEGATIVE")
             self.transaction_costs = config.get("FMP").get("TRANSACTION_COSTS_BPS")
+            self.fmp_bench_transaction_costs = config.get("FMP").get("BENCHMARK_TRANSACTION_COSTS_BPS")
             self.strategy_name = config.get("FMP").get("STRATEGY_NAME")
 
             # Feature engineering
@@ -145,3 +152,8 @@ class Config:
                     if model_name.endswith("_pca"):
                         base_model_name = model_name[:-4]
                         self.hyperparams_grid[model_name] = self.hyperparams_grid.get(base_model_name)
+
+            # Dynamic Allocation
+            self.load_or_train_models = config.get("DYNAMIC_ALLOCATION").get("LOAD_OR_TRAIN_MODELS")
+            self.dynamic_allocation_rebal_periods = config.get("DYNAMIC_ALLOCATION").get("REBAL_PERIODS")
+            self.dynamic_allocation_tc = config.get("DYNAMIC_ALLOCATION").get("TRANSACTION_COSTS_BPS")

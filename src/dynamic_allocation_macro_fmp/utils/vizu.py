@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Dict, Iterable
 from pathlib import Path
 
 class Vizu:
@@ -13,7 +13,7 @@ class Vizu:
             save_path: Optional[str]|Optional[Path] = None,
             show: bool = True,
             block: bool = True,
-            figsize: tuple = (10, 5),
+            figsize: tuple = (10, 5)
     ):
         """
         Plot one or multiple time series with a DateTime index.
@@ -82,3 +82,80 @@ class Vizu:
             plt.show(block=block)
         else:
             plt.close(fig)
+
+    @staticmethod
+    def plot_timeseries_dict(
+            data: Dict[str, pd.DataFrame],
+            save_path: str,
+            title: str = "Time Series Plot",
+            y_label: str = "Cumulative Returns",
+            figsize: tuple = (12, 6),
+            linewidth: float = 1.5,
+            dashed_black_keys: Optional[Iterable[str]] = None,
+    ) -> None:
+        """
+        Plot all time series from a dict of DataFrames on a single figure and save it.
+
+        Parameters
+        ----------
+        data : dict[str, pd.DataFrame]
+            Dictionary of DataFrames with DatetimeIndex
+        save_path : str
+            Path where the plot will be saved
+        title : str, optional
+            Plot title
+        y_label : str, optional
+            Y-axis label
+        figsize : tuple, optional
+            Figure size
+        linewidth : float, optional
+            Line width
+        dashed_black_keys : Iterable[str], optional
+            Keys in the data dict for which the lines should be dashed black
+        """
+        dashed_black_keys = list(dashed_black_keys or [])
+        black_linestyles = ["--", "-.", ":", (0, (5, 1))]
+
+        plt.figure(figsize=figsize)
+
+        for name, df in data.items():
+            if not isinstance(df.index, pd.DatetimeIndex):
+                raise ValueError(f"Index of DataFrame '{name}' must be a DatetimeIndex")
+
+            is_highlighted = name in dashed_black_keys
+
+            if is_highlighted:
+                style_idx = dashed_black_keys.index(name) % len(black_linestyles)
+                linestyle = black_linestyles[style_idx]
+                color = "black"
+                lw = linewidth + 0.8
+                alpha = 1.0
+                zorder = 3
+            else:
+                linestyle = "-"
+                color = None
+                lw = linewidth
+                alpha = 0.8
+                zorder = 2
+
+            for col in df.columns:
+                plt.plot(
+                    df.index,
+                    df[col],
+                    label=f"{col}",
+                    linestyle=linestyle,
+                    color=color,
+                    linewidth=lw,
+                    alpha=alpha,
+                    zorder=zorder,
+                )
+
+        plt.title(title)
+        plt.xlabel("Date")
+        plt.ylabel(y_label)
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+
+        plt.savefig(save_path)
+        plt.close()

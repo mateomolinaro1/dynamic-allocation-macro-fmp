@@ -24,7 +24,8 @@
     "REBAL_PERIODS": 1,
     "PORTFOLIO_TYPE_POSITIVE": "long_only",
     "PORTFOLIO_TYPE_NEGATIVE": "short_only",
-    "TRANSACTION_COSTS_BPS": 10,
+    "TRANSACTION_COSTS_BPS": 0,
+    "BENCHMARK_TRANSACTION_COSTS_BPS": 10,
     "STRATEGY_NAME": "EW_MACRO_FMP"
   },
 
@@ -58,6 +59,12 @@
   }
 
 
+  },
+
+  "DYNAMIC_ALLOCATION": {
+    "LOAD_OR_TRAIN_MODELS": "load",
+    "REBAL_PERIODS": 1,
+    "TRANSACTION_COSTS_BPS": 10
   }
 
 }

@@ -122,7 +122,7 @@ class FactorMimickingPortfolio:
             returns=self.asset_returns.shift(-1),
             weights=bench_ptf.rebalanced_weights,
             turnover=bench_ptf.turnover,
-            transaction_costs=self.config.transaction_costs,
+            transaction_costs=self.config.fmp_bench_transaction_costs,
             strategy_name="BENCHMARK_LO_EW"
         )
         bench_backtester.run_backtest()

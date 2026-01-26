@@ -1,12 +1,14 @@
 import pandas as pd
-
 from dynamic_allocation_macro_fmp.utils.config import Config
 from dynamic_allocation_macro_fmp.data.data import DataManager
 from dynamic_allocation_macro_fmp.fmp.fmp import FactorMimickingPortfolio
 from dynamic_allocation_macro_fmp.forecasting.features_engineering import FeaturesEngineering
+from dynamic_allocation_macro_fmp.utils.s3_utils import s3Utils
 from dynamic_allocation_macro_fmp.utils.vizu import Vizu
 from dynamic_allocation_macro_fmp.forecasting.schemes.expanding import ExpandingWindowScheme
 from dynamic_allocation_macro_fmp.forecasting.models import Lasso, WLSExponentialDecay
+from dynamic_allocation_macro_fmp.dynamic_allocation.dynamic_allocation import DynamicAllocation
+from dynamic_allocation_macro_fmp.utils.utils import Utils
 import sys
 import logging
 
@@ -23,7 +25,7 @@ fmp = FactorMimickingPortfolio(
     market_returns=None,
     rf=None
 )
-# fmp.build_macro_portfolios()
+fmp.build_macro_portfolios()
 #
 # fmp_returns = pd.concat([fmp.positive_betas_fmp_returns, fmp.negative_betas_fmp_returns, fmp.benchmark_returns], axis=1)
 # from dynamic_allocation_macro_fmp.utils.vizu import Vizu
@@ -69,13 +71,6 @@ fmp = FactorMimickingPortfolio(
 #     title="Stock-level Macro Betas over Time",
 # )
 
-
-# fmp.betas_macro.mean(axis=1)
-# fmp.betas_macro.mean(axis=1).mean()
-#
-# fmp.betas_mkt.mean(axis=1)
-# fmp.betas_mkt.mean(axis=1).mean()
-
 fe = FeaturesEngineering(config=config, data=data_manager)
 fe.get_features()
 
@@ -88,23 +83,55 @@ exp_window = ExpandingWindowScheme(
     min_nb_periods_required=config.min_nb_periods_required
 )
 
-# models = {
-#     "wls": WLSExponentialDecay,
-#     "lasso": Lasso
-# }
-# hyperparams_grid = {
-#     "wls": {
-#         "decay": [0.9, 0.99]
-#     },
-#     "lasso": {
-#         "alpha": [0.01, 10.0]
-#     }
-# }
-exp_window.run(
-    models=config.models,
-    hyperparams_grid=config.hyperparams_grid
+
+# exp_window.run(
+#     models=config.models,
+#     hyperparams_grid=config.hyperparams_grid
+# )
+# print(exp_window.best_score_all_models_overtime.mean())
+oos_predictions_d = s3Utils.pull_file_from_s3(
+    path="s3://dynamic-allocation-macro-fmp/outputs/forecasting/oos_predictions.pkl",
+    file_type="pkl"
 )
-print(exp_window.best_score_all_models_overtime.mean())
+
+dynamic_alloc = DynamicAllocation(
+    config=config,
+    predictions=oos_predictions_d,
+    long_leg_fmp=fmp.positive_betas_fmp_returns,
+    short_leg_fmp=fmp.negative_betas_fmp_returns,
+    benchmark_ptf=fmp.benchmark_returns
+)
+dynamic_alloc.run_backtest()
+
+cum_rets = Utils.compute_cumulative_returns_for_dict_of_df(dynamic_alloc.net_returns)
+bench_cum_ret = fmp.benchmark_returns
+# Dates alignment for bench
+bench_idx_aligned = (
+        bench_cum_ret.index
+        - pd.DateOffset(months=1)
+        - pd.DateOffset(days=1)
+)
+bench_cum_ret.index = bench_idx_aligned
+bench_cum_ret_aligned = pd.merge(
+    left=bench_cum_ret,
+    right=cum_rets[list(cum_rets.keys())[0]],
+    left_index=True,
+    right_index=True,
+    how="inner"
+)
+bench_cum_ret_aligned = bench_cum_ret_aligned.drop(columns=cum_rets[list(cum_rets.keys())[0]].columns)
+bench_cum_ret_aligned = (1+bench_cum_ret_aligned).cumprod()-1
+
+cum_rets["Bench LO EW stocks"] = bench_cum_ret_aligned
+cum_rets["Bench EW FMP"] = (1+dynamic_alloc.benchmark_ew_fmp_net_returns).cumprod()-1
+
+Vizu.plot_timeseries_dict(
+    data=cum_rets,
+    save_path=r"C:\Users\mateo\Code\ENSAE\MacroML\DynamicAllocationMacroFMP\outputs\figures\dynamic_allocation_cum_returns.png",
+    title="Dynamic Allocation Strategy Cumulative Returns",
+    y_label="Cumulative Returns",
+    dashed_black_keys=["Bench LO EW stocks", "Bench EW FMP"]
+)
 
 # from pathlib import Path
 # import pickle

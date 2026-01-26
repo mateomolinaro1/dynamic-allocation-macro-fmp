@@ -54,3 +54,25 @@ class Utils:
             else:
                 # silently skip unsupported types
                 continue
+
+    @staticmethod
+    def compute_cumulative_returns_for_dict_of_df(
+            data: dict[str, pd.DataFrame]
+    ) -> dict[str, pd.DataFrame]:
+        """
+        Compute cumulative returns for each DataFrame in a dictionary.
+
+        Parameters
+        ----------
+        data : dict[str, pd.DataFrame]
+            Dictionary of DataFrames with returns data.
+
+        Returns
+        -------
+        dict[str, pd.DataFrame]
+            Dictionary of DataFrames with cumulative returns.
+        """
+        cum_returns = {}
+        for name, df in data.items():
+            cum_returns[name] = (1 + df).cumprod() - 1
+        return cum_returns
