@@ -44,10 +44,7 @@ class FactorMimickingPortfolio:
         if self.bayesian_betas.isna().all().all():
             try:
                 # Download from s3
-                self.bayesian_betas = s3Utils.pull_file_from_s3(
-                    path=self.config.s3_path + "/outputs/fmp/fmp_bayesian_betas.parquet",
-                    file_type="parquet"
-                )
+                self._load_regression_results_from_s3()
             except Exception as e:
                 logger.info("Could not download bayesian_betas from s3, computing them locally.")
                 self._get_betas()
@@ -128,6 +125,44 @@ class FactorMimickingPortfolio:
         bench_backtester.run_backtest()
         self.benchmark_returns = bench_backtester.cropped_portfolio_net_returns
 
+
+    def _load_regression_results_from_s3(self)->None:
+        self.bayesian_betas = s3Utils.pull_file_from_s3(
+            path=self.config.s3_path + "/outputs/fmp/fmp_bayesian_betas.parquet",
+            file_type="parquet"
+        )
+        self.adjusted_rsquared = s3Utils.pull_file_from_s3(
+            path=self.config.s3_path + "/outputs/fmp/fmp_adjusted_rsquared.parquet",
+            file_type="parquet"
+        )
+        self.betas_macro = s3Utils.pull_file_from_s3(
+            path=self.config.s3_path + "/outputs/fmp/fmp_betas_macro.parquet",
+            file_type="parquet"
+        )
+        self.betas_mkt = s3Utils.pull_file_from_s3(
+            path=self.config.s3_path + "/outputs/fmp/fmp_betas_mkt.parquet",
+            file_type="parquet"
+        )
+        self.default_pvalue = s3Utils.pull_file_from_s3(
+            path=self.config.s3_path + "/outputs/fmp/fmp_default_pvalue.parquet",
+            file_type="parquet"
+        )
+        self.newey_west_pvalue = s3Utils.pull_file_from_s3(
+            path=self.config.s3_path + "/outputs/fmp/fmp_newey_west_pvalue.parquet",
+            file_type="parquet"
+        )
+        self.macro_var = s3Utils.pull_file_from_s3(
+            path=self.config.s3_path + "/outputs/fmp/fmp_macro_var.parquet",
+            file_type="parquet"
+        )
+        self.newey_west_var_betas = s3Utils.pull_file_from_s3(
+            path=self.config.s3_path + "/outputs/fmp/fmp_newey_west_var_betas.parquet",
+            file_type="parquet"
+        )
+        self.white_var_betas = s3Utils.pull_file_from_s3(
+            path=self.config.s3_path + "/outputs/fmp/fmp_white_var_betas.parquet",
+            file_type="parquet"
+        )
 
     def _get_betas(self):
         self._fit_wls()

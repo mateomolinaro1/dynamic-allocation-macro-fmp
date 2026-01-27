@@ -9,6 +9,7 @@ from dynamic_allocation_macro_fmp.forecasting.schemes.expanding import Expanding
 from dynamic_allocation_macro_fmp.forecasting.models import Lasso, WLSExponentialDecay
 from dynamic_allocation_macro_fmp.dynamic_allocation.dynamic_allocation import DynamicAllocation
 from dynamic_allocation_macro_fmp.utils.utils import Utils
+from dynamic_allocation_macro_fmp.utils.analytics import AnalyticsFMP
 import sys
 import logging
 
@@ -26,50 +27,12 @@ fmp = FactorMimickingPortfolio(
     rf=None
 )
 fmp.build_macro_portfolios()
-#
-# fmp_returns = pd.concat([fmp.positive_betas_fmp_returns, fmp.negative_betas_fmp_returns, fmp.benchmark_returns], axis=1)
-# from dynamic_allocation_macro_fmp.utils.vizu import Vizu
-# Vizu.plot_time_series(
-#     data=fmp_returns.loc["2010-01-02":,:].cumsum(),
-#     title="LO EW and SH EW FMP Returns over Time",
-#     ylabel="Cumulative Returns",
-#     xlabel="Date",
-#     save_path=r"C:\Users\mateo\Code\ENSAE\MacroML\DynamicAllocationMacroFMP\outputs\figures\fmp_returns.png",
-#     show=False,
-#     block=False
-# )
-#
-# # LO
-# Vizu.plot_time_series(
-#     data=(1+fmp.positive_betas_fmp_returns.loc["2010-01-02":,:]).cumprod()-1,
-#     title="LO EW FMP Returns over Time",
-#     ylabel="Cumulative Returns",
-#     xlabel="Date",
-#     save_path=r"C:\Users\mateo\Code\ENSAE\MacroML\DynamicAllocationMacroFMP\outputs\figures\positive_fmp_returns.png",
-#     show=False,
-#     block=False
-# )
-# # SO
-# Vizu.plot_time_series(
-#     data=fmp.negative_betas_fmp_returns.loc["2010-01-02":,:].cumsum(),
-#     title="SO EW FMP Returns over Time",
-#     ylabel="Cumulative Returns",
-#     xlabel="Date",
-#     save_path=r"C:\Users\mateo\Code\ENSAE\MacroML\DynamicAllocationMacroFMP\outputs\figures\negative_fmp_returns.png",
-#     show=False,
-#     block=False
-# )
+analytics_fmp = AnalyticsFMP(
+    config=config,
+    fmp=fmp
+)
+analytics_fmp.get_analytics()
 
-# from dynamic_allocation_macro_fmp.forecasting.features_selection import PCAFactorExtractor
-# pca_extractor = PCAFactorExtractor(
-#     n_factors=5
-# )
-# factors = pca_extractor.fit_transform(fe.x)
-
-# Vizu.plot_time_series(
-#     data=fmp.betas_macro,
-#     title="Stock-level Macro Betas over Time",
-# )
 
 fe = FeaturesEngineering(config=config, data=data_manager)
 fe.get_features()
@@ -82,13 +45,11 @@ exp_window = ExpandingWindowScheme(
     validation_window=config.validation_window,
     min_nb_periods_required=config.min_nb_periods_required
 )
+exp_window.run(
+    models=config.models,
+    hyperparams_grid=config.hyperparams_grid
+)
 
-
-# exp_window.run(
-#     models=config.models,
-#     hyperparams_grid=config.hyperparams_grid
-# )
-# print(exp_window.best_score_all_models_overtime.mean())
 oos_predictions_d = s3Utils.pull_file_from_s3(
     path="s3://dynamic-allocation-macro-fmp/outputs/forecasting/oos_predictions.pkl",
     file_type="pkl"
