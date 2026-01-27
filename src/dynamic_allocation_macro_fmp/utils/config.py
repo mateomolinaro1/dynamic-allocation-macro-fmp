@@ -58,6 +58,7 @@ class Config:
         self.lags: List[int]|list|None = None
 
         # Forecasting
+        self.load_or_train_models: str | None = None  # "load" or "train"
         self.forecast_horizon: int|None = None
         self.validation_window: int|None = None
         self.min_nb_periods_required: int|None = None
@@ -67,7 +68,6 @@ class Config:
         self.nb_pca_components: int|None = None
 
         # Dynamic Allocation
-        self.load_or_train_models: str|None = None  # "load" or "train"
         self.dynamic_allocation_rebal_periods: int|None = None
         self.dynamic_allocation_tc: float|int|None = None
 
@@ -122,6 +122,7 @@ class Config:
             self.lags = config.get("FEATURE_ENGINEERING").get("LAGS")
 
             # Forcasting
+            self.load_or_train_models = config.get("FORECASTING").get("LOAD_OR_TRAIN_MODELS")
             self.forecast_horizon = config.get("FORECASTING").get("FORECAST_HORIZON")
             self.validation_window = config.get("FORECASTING").get("VALIDATION_WINDOW")
             self.min_nb_periods_required = config.get("FORECASTING").get("MIN_NB_PERIODS_REQUIRED")
@@ -154,6 +155,5 @@ class Config:
                         self.hyperparams_grid[model_name] = self.hyperparams_grid.get(base_model_name)
 
             # Dynamic Allocation
-            self.load_or_train_models = config.get("DYNAMIC_ALLOCATION").get("LOAD_OR_TRAIN_MODELS")
             self.dynamic_allocation_rebal_periods = config.get("DYNAMIC_ALLOCATION").get("REBAL_PERIODS")
             self.dynamic_allocation_tc = config.get("DYNAMIC_ALLOCATION").get("TRANSACTION_COSTS_BPS")

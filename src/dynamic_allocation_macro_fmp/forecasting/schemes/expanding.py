@@ -9,6 +9,7 @@ from .base import EstimationScheme
 import logging
 from dynamic_allocation_macro_fmp.forecasting.models import Model
 from dynamic_allocation_macro_fmp.forecasting.features_selection import PCAFactorExtractor
+from ...utils.s3_utils import s3Utils
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,19 @@ class ExpandingWindowScheme(EstimationScheme):
         models: Dict[str, Type[Model]],
         hyperparams_grid: Dict[str, Dict[str, list]]
     ) -> None:
+        if self.config.load_or_train_models == "load":
+            loaded_obj = self._load_models()
+            self._put_in_attributes(loaded_obj=loaded_obj)
+            logger.info("Models and results loaded from S3.")
+            return
+        elif self.config.load_or_train_models == "train":
+            pass
+        else:
+            raise ValueError(
+                "config.load_or_train_models must be either 'load' or 'train'"
+            )
 
+        logger.info("Starting Expanding Window Estimation Scheme...")
         # -----------------------------
         # Hyperparams combinations
         # -----------------------------
@@ -163,7 +176,7 @@ class ExpandingWindowScheme(EstimationScheme):
                         best_hyperparams = hp
 
                 # -----------------------------
-                # STORE OOS RESULTS
+                # STORE VALIDATION RESULTS
                 # -----------------------------
                 self.best_score_all_models_overtime.loc[date_t, model_name] = best_score
                 if best_hyperparams is not None:
@@ -226,3 +239,34 @@ class ExpandingWindowScheme(EstimationScheme):
         ]
 
         return train_data, val_data, val_end
+
+    def _load_models(self):
+        loaded_obj = s3Utils.pull_files_from_s3(
+            paths=[
+                self.config.outputs_path + "/forecasting" + "/best_hyperparams_all_models_overtime.pkl",
+                self.config.outputs_path + "/forecasting" + "/best_params_all_models_overtime.pkl",
+                self.config.outputs_path + "/forecasting" + "/best_score_all_models_overtime.parquet",
+                self.config.outputs_path + "/forecasting" + "/oos_predictions.pkl",
+                self.config.outputs_path + "/forecasting" + "/oos_true.pkl",
+                self.config.outputs_path + "/forecasting" + "/data.parquet",
+                self.config.outputs_path + "/forecasting" + "/x.parquet",
+                self.config.outputs_path + "/forecasting" + "/y.parquet",
+            ]
+        )
+        return loaded_obj
+
+    def _put_in_attributes(self, loaded_obj: dict):
+        self.best_hyperparams_all_models_overtime = loaded_obj[
+            "best_hyperparams_all_models_overtime"
+        ]
+        self.best_params_all_models_overtime = loaded_obj[
+            "best_params_all_models_overtime"
+        ]
+        self.best_score_all_models_overtime = loaded_obj[
+            "best_score_all_models_overtime"
+        ]
+        self.oos_predictions = loaded_obj["oos_predictions"]
+        self.oos_true = loaded_obj["oos_true"]
+        self.data = loaded_obj["data"]
+        self.x = loaded_obj["x"]
+        self.y = loaded_obj["y"]

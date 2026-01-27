@@ -9,6 +9,7 @@ import boto3
 import pandas as pd
 from botocore.client import BaseClient
 from typing import Any
+from pathlib import Path
 from dynamic_allocation_macro_fmp.utils.config import Config
 config=Config()
 
@@ -246,6 +247,91 @@ class s3Utils:
 
         raise ValueError(f"Unsupported file_type: {file_type}")
 
+    @staticmethod
+    def pull_files_from_s3(
+            paths: list[str],
+            profile: Optional[str] = DEFAULT_PROFILE,
+            region: Optional[str] = DEFAULT_REGION,
+            to_polars: bool = False,
+            file_type: Optional[str] = None,  # "parquet" | "pickle" | "csv"
+            **csv_kwargs: Any,
+    ) -> dict[str, pd.DataFrame | pl.DataFrame | Any]:
+        """
+        Download multiple parquet, pickle or csv files from S3.
+
+        Parameters
+        ----------
+        paths : list[str]
+            List of S3 URIs (s3://bucket/key)
+        profile : str, optional
+            AWS profile
+        region : str, optional
+            AWS region
+        to_polars : bool, default False
+            If True and parquet/csv → return polars.DataFrame
+        file_type : {"parquet", "pickle", "csv"}, optional
+            Force file type for all files. If None, inferred per file.
+        csv_kwargs : dict
+            Extra keyword arguments passed to pd.read_csv / pl.read_csv
+
+        Returns
+        -------
+        dict
+            Mapping {path: pd.DataFrame | pl.DataFrame | object}
+        """
+        if not isinstance(paths, list):
+            raise ValueError("paths must be a list of S3 URIs")
+
+        s3 = s3Utils.get_s3_client(profile=profile, region=region)
+        outputs: dict[str, Any] = {}
+
+        for path in paths:
+            if not isinstance(path, str):
+                raise ValueError("Each path must be a str")
+            if not path.startswith("s3://"):
+                raise ValueError(f"Invalid S3 URI: {path}")
+
+            # Infer file type if not provided
+            ft = file_type
+            if ft is None:
+                if path.endswith(".parquet"):
+                    ft = "parquet"
+                elif path.endswith((".pkl", ".pickle")):
+                    ft = "pickle"
+                elif path.endswith(".csv"):
+                    ft = "csv"
+                else:
+                    raise ValueError(
+                        f"Cannot infer file type from path: {path}; specify file_type"
+                    )
+
+            bucket, key = s3Utils._parse_s3_uri(path)
+            obj = s3.get_object(Bucket=bucket, Key=key)
+            buf = io.BytesIO(obj["Body"].read())
+
+            key = path.split("/")[-1].split(".")[0]
+            if ft == "parquet":
+                outputs[key] = (
+                    pl.read_parquet(buf)
+                    if to_polars
+                    else pd.read_parquet(buf, engine="pyarrow")
+                )
+
+            elif ft in {"pickle", "pkl"}:
+                outputs[key] = pickle.loads(buf.getvalue())
+
+            elif ft == "csv":
+                outputs[key] = (
+                    pl.read_csv(buf, **csv_kwargs)
+                    if to_polars
+                    else pd.read_csv(buf, **csv_kwargs)
+                )
+
+            else:
+                raise ValueError(f"Unsupported file_type: {ft}")
+
+        return outputs
+
     # ---------- parquet: PULL ----------
     @staticmethod
     def pull_parquet_file_from_s3(
@@ -276,7 +362,7 @@ class s3Utils:
 
     @staticmethod
     def pull_parquet_files_from_s3(
-        paths: List[str],
+        paths: List[str|Path],
         profile: Optional[str] = DEFAULT_PROFILE,
         region: Optional[str] = DEFAULT_REGION,
     ) -> dict:
